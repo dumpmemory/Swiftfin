@@ -9,7 +9,7 @@
 import Defaults
 import JellyfinAPI
 import MediaPlayer
-import Stinsen
+
 import SwiftUI
 import VLCUI
 
@@ -77,8 +77,8 @@ struct VideoPlayer: View {
     @Default(.VideoPlayer.Subtitle.subtitleSize)
     private var subtitleSize
 
-    @EnvironmentObject
-    private var router: VideoPlayerCoordinator.Router
+    @Router
+    private var router
 
     @ObservedObject
     private var currentProgressHandler: VideoPlayerManager.CurrentProgressHandler
@@ -138,7 +138,7 @@ struct VideoPlayer: View {
                                 {
                                     videoPlayerManager.selectNextViewModel()
                                 } else {
-                                    router.dismissCoordinator()
+                                    router.dismiss()
                                 }
                             }
                         }
@@ -162,18 +162,6 @@ struct VideoPlayer: View {
 
                     VideoPlayer.Overlay()
                 }
-            }
-            .splitContent {
-                // Wrapped due to navigation controller popping due to published changes
-                WrappedView {
-                    NavigationViewCoordinator(PlaybackSettingsCoordinator()).view()
-                }
-                .cornerRadius(20, corners: [.topLeft, .bottomLeft])
-                .environmentObject(splitContentViewProxy)
-                .environmentObject(videoPlayerManager)
-                .environmentObject(videoPlayerManager.currentViewModel)
-                .environment(\.audioOffset, $audioOffset)
-                .environment(\.subtitleOffset, $subtitleOffset)
             }
             .onChange(of: videoPlayerManager.currentProgressHandler.scrubbedProgress) { newValue in
                 guard !newValue.isNaN && !newValue.isInfinite else {
@@ -225,9 +213,9 @@ struct VideoPlayer: View {
         }
         .onChange(of: isGestureLocked) { newValue in
             if newValue {
-                updateViewProxy.present(systemName: "lock.fill", title: "Gestures Locked")
+                updateViewProxy.present(systemName: "lock.fill", title: L10n.gesturesLocked)
             } else {
-                updateViewProxy.present(systemName: "lock.open.fill", title: "Gestures Unlocked")
+                updateViewProxy.present(systemName: "lock.open.fill", title: L10n.gesturesUnlocked)
             }
         }
         .onChange(of: isScrubbing) { newValue in
@@ -352,7 +340,7 @@ extension VideoPlayer {
 
     private func handleTapGesture(unitPoint: UnitPoint, taps: Int) {
         guard !isGestureLocked else {
-            updateViewProxy.present(systemName: "lock.fill", title: "Gestures Locked")
+            updateViewProxy.present(systemName: "lock.fill", title: L10n.gesturesLocked)
             return
         }
 
@@ -382,7 +370,7 @@ extension VideoPlayer {
         }
 
         guard !isGestureLocked else {
-            updateViewProxy.present(systemName: "lock.fill", title: "Gestures Locked")
+            updateViewProxy.present(systemName: "lock.fill", title: L10n.gesturesLocked)
             return
         }
 

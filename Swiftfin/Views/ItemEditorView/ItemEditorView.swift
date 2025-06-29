@@ -12,14 +12,29 @@ import SwiftUI
 
 struct ItemEditorView: View {
 
-    @Injected(\.currentUserSession)
-    private var userSession
-
-    @EnvironmentObject
-    private var router: ItemEditorCoordinator.Router
+    @Router
+    private var router
 
     @ObservedObject
     var viewModel: ItemViewModel
+
+    // MARK: - Can Edit Metadata
+
+    private var canEditMetadata: Bool {
+        viewModel.userSession.user.permissions.items.canEditMetadata(item: viewModel.item) == true
+    }
+
+    // MARK: - Can Manage Subtitles
+
+    private var canManageSubtitles: Bool {
+        viewModel.userSession.user.permissions.items.canManageSubtitles(item: viewModel.item) == true
+    }
+
+    // MARK: - Can Manage Lyrics
+
+    private var canManageLyrics: Bool {
+        viewModel.userSession.user.permissions.items.canManageLyrics(item: viewModel.item) == true
+    }
 
     // MARK: - Body
 
@@ -35,7 +50,7 @@ struct ItemEditorView: View {
         .navigationBarTitle(L10n.metadata)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarCloseButton {
-            router.dismissCoordinator()
+            router.dismiss()
         }
     }
 
@@ -48,9 +63,27 @@ struct ItemEditorView: View {
                 description: viewModel.item.path
             )
 
-            refreshButtonView
+            /// Hide metadata options to Lyric/Subtitle only users
+            if canEditMetadata {
 
-            editView
+                refreshButtonView
+
+                Section(L10n.edit) {
+                    editMetadataView
+                    editTextView
+                }
+
+                // TODO: add `BaseItemDto.hasComponenets`
+                if viewModel.item.type != .person {
+                    editComponentsView
+                }
+            } /*  else if canManageSubtitles || canManageLyrics {
+
+                 // TODO: Enable when Subtitle / Lyric Editing is added
+                 Section(L10n.edit) {
+                     editTextView
+                 }
+             }*/
         }
     }
 
@@ -70,59 +103,80 @@ struct ItemEditorView: View {
     private var refreshButtonView: some View {
         Section {
             RefreshMetadataButton(item: viewModel.item)
-                .environment(\.isEnabled, userSession?.user.permissions.isAdministrator ?? false)
         } footer: {
             LearnMoreButton(L10n.metadata) {
-                TextPair(
-                    title: L10n.findMissing,
-                    subtitle: L10n.findMissingDescription
+                LabeledContent(
+                    L10n.findMissing,
+                    value: L10n.findMissingDescription
                 )
-                TextPair(
-                    title: L10n.replaceMetadata,
-                    subtitle: L10n.replaceMetadataDescription
+                LabeledContent(
+                    L10n.replaceMetadata,
+                    value: L10n.replaceMetadataDescription
                 )
-                TextPair(
-                    title: L10n.replaceImages,
-                    subtitle: L10n.replaceImagesDescription
+                LabeledContent(
+                    L10n.replaceImages,
+                    value: L10n.replaceImagesDescription
                 )
-                TextPair(
-                    title: L10n.replaceAll,
-                    subtitle: L10n.replaceAllDescription
+                LabeledContent(
+                    L10n.replaceAll,
+                    value: L10n.replaceAllDescription
                 )
             }
         }
     }
 
-    // MARK: - Editable Routing Buttons
+    // MARK: - Editable Metadata Routing Buttons
 
     @ViewBuilder
-    private var editView: some View {
-        Section(L10n.edit) {
-            if [.boxSet, .movie, .person, .series].contains(viewModel.item.type) {
-                ChevronButton(L10n.identify) {
-                    router.route(to: \.identifyItem, viewModel.item)
-                }
-            }
-            ChevronButton(L10n.images) {
-                router.route(to: \.editImages, ItemImagesViewModel(item: viewModel.item))
-            }
-            ChevronButton(L10n.metadata) {
-                router.route(to: \.editMetadata, viewModel.item)
+    private var editMetadataView: some View {
+
+        if let itemKind = viewModel.item.type,
+           BaseItemKind.itemIdentifiableCases.contains(itemKind)
+        {
+            ChevronButton(L10n.identify) {
+                router.route(to: .identifyItem(item: viewModel.item))
             }
         }
+        ChevronButton(L10n.images) {
+            router.route(to: .itemImages(viewModel: ItemImagesViewModel(item: viewModel.item)))
+        }
+        ChevronButton(L10n.metadata) {
+            router.route(to: .editMetadata(item: viewModel.item))
+        }
+    }
 
+    // MARK: - Editable Text Routing Buttons
+
+    @ViewBuilder
+    private var editTextView: some View {
+        if canManageLyrics {
+//          ChevronButton(L10n.lyrics) {
+//              router.route(to: \.editImages, ItemImagesViewModel(item: viewModel.item))
+//          }
+        }
+        if canManageSubtitles {
+//          ChevronButton(L10n.subtitles) {
+//              router.route(to: \.editImages, ItemImagesViewModel(item: viewModel.item))
+//          }
+        }
+    }
+
+    // MARK: - Editable Metadata Components Routing Buttons
+
+    @ViewBuilder
+    private var editComponentsView: some View {
         Section {
             ChevronButton(L10n.genres) {
-                router.route(to: \.editGenres, viewModel.item)
+                router.route(to: .editGenres(item: viewModel.item))
             }
             ChevronButton(L10n.people) {
-                router.route(to: \.editPeople, viewModel.item)
+                router.route(to: .editPeople(item: viewModel.item))
             }
             ChevronButton(L10n.tags) {
-                router.route(to: \.editTags, viewModel.item)
+                router.route(to: .editTags(item: viewModel.item))
             }
             ChevronButton(L10n.studios) {
-                router.route(to: \.editStudios, viewModel.item)
+                router.route(to: .editStudios(item: viewModel.item))
             }
         }
     }

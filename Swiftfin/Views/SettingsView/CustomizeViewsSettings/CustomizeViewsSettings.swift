@@ -64,8 +64,8 @@ struct CustomizeViewsSettings: View {
     @Default(.Customization.Library.randomImage)
     private var libraryRandomImage
 
-    @EnvironmentObject
-    private var router: SettingsCoordinator.Router
+    @Router
+    private var router
 
     var body: some View {
         List {
@@ -105,11 +105,11 @@ struct CustomizeViewsSettings: View {
                 }
 
                 ChevronButton(L10n.library) {
-                    router.route(to: \.itemFilterDrawerSelector, $libraryEnabledDrawerFilters)
+                    router.route(to: .itemFilterDrawerSelector(selection: $libraryEnabledDrawerFilters))
                 }
 
                 ChevronButton(L10n.search) {
-                    router.route(to: \.itemFilterDrawerSelector, $searchEnabledDrawerFilters)
+                    router.route(to: .itemFilterDrawerSelector(selection: $searchEnabledDrawerFilters))
                 }
 
             } header: {
@@ -126,7 +126,7 @@ struct CustomizeViewsSettings: View {
             Section(L10n.posters) {
 
                 ChevronButton(L10n.indicators) {
-                    router.route(to: \.indicatorSettings)
+                    router.route(to: .indicatorSettings)
                 }
 
                 Toggle(L10n.showPosterLabels, isOn: $showPosterLabels)
@@ -140,14 +140,14 @@ struct CustomizeViewsSettings: View {
                 CaseIterablePicker(L10n.search, selection: $searchPosterType)
             }
 
-            Section("Libraries") {
+            Section(L10n.libraries) {
                 CaseIterablePicker(L10n.library, selection: $libraryDisplayType)
 
                 CaseIterablePicker(L10n.posters, selection: $libraryPosterType)
 
                 if libraryDisplayType == .list, UIDevice.isPad {
                     BasicStepper(
-                        title: L10n.columns,
+                        L10n.columns,
                         value: $listColumnCount,
                         range: 1 ... 4,
                         step: 1

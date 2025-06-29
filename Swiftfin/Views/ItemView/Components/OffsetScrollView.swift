@@ -24,9 +24,9 @@ extension ItemView {
         @State
         private var safeAreaInsets: EdgeInsets = .zero
 
-        private let header: () -> Header
-        private let overlay: () -> Overlay
-        private let content: () -> Content
+        private let header: Header
+        private let overlay: Overlay
+        private let content: Content
         private let heightRatio: CGFloat
 
         init(
@@ -35,9 +35,9 @@ extension ItemView {
             @ViewBuilder overlay: @escaping () -> Overlay,
             @ViewBuilder content: @escaping () -> Content
         ) {
-            self.header = header
-            self.overlay = overlay
-            self.content = content
+            self.header = header()
+            self.overlay = overlay()
+            self.content = content()
             self.heightRatio = headerHeight
         }
 
@@ -52,20 +52,20 @@ extension ItemView {
         var body: some View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    overlay()
+                    overlay
                         .frame(height: (size.height + safeAreaInsets.vertical) * heightRatio)
                         .overlay {
                             Color.systemBackground
                                 .opacity(headerOpacity)
                         }
 
-                    content()
+                    content
                 }
             }
             .edgesIgnoringSafeArea(.top)
-            .onSizeChanged { size, safeAreaInsets in
-                self.size = size
-                self.safeAreaInsets = safeAreaInsets
+            .onSizeChanged { newSize, insets in
+                self.size = newSize
+                self.safeAreaInsets = insets
             }
             .scrollViewOffset($scrollViewOffset)
             .navigationBarOffset(
@@ -78,7 +78,7 @@ extension ItemView {
                 height: (size.height + safeAreaInsets.vertical) * heightRatio,
                 multiplier: 0.3
             ) {
-                header()
+                header
                     .frame(height: (size.height + safeAreaInsets.vertical) * heightRatio)
             }
         }

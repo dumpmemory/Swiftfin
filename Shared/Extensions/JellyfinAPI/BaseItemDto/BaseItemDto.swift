@@ -14,17 +14,21 @@ import UIKit
 
 // TODO: clean up
 
-extension BaseItemDto: Displayable {
+extension BaseItemDto {
 
-    var displayTitle: String {
-        name ?? .emptyDash
+    init(person: BaseItemPerson) {
+        self.init(
+            id: person.id,
+            name: person.name,
+            type: .person
+        )
     }
 }
 
-extension BaseItemDto: LibraryParent {
+extension BaseItemDto: Displayable {
 
-    var libraryType: BaseItemKind? {
-        type
+    var displayTitle: String {
+        name ?? L10n.unknown
     }
 }
 
@@ -36,6 +40,21 @@ extension BaseItemDto: LibraryIdentifiable {
 }
 
 extension BaseItemDto {
+
+    var birthday: Date? {
+        guard type == .person else { return nil }
+        return premiereDate
+    }
+
+    var birthplace: String? {
+        guard type == .person else { return nil }
+        return productionLocations?.first
+    }
+
+    var deathday: Date? {
+        guard type == .person else { return nil }
+        return endDate
+    }
 
     var episodeLocator: String? {
         guard let episodeNo = indexNumber else { return nil }
@@ -268,7 +287,6 @@ extension BaseItemDto {
             album
         case .episode:
             seriesName
-        case .program: nil
         default:
             nil
         }

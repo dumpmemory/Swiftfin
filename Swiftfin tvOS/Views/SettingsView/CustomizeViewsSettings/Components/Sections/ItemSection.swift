@@ -17,8 +17,8 @@ extension CustomizeViewsSettings {
         @Injected(\.currentUserSession)
         private var userSession
 
-        @EnvironmentObject
-        private var router: CustomizeSettingsCoordinator.Router
+        @Router
+        private var router
 
         @StoredValue(.User.itemViewAttributes)
         private var itemViewAttributes
@@ -36,22 +36,22 @@ extension CustomizeViewsSettings {
             Section(L10n.items) {
 
                 ChevronButton(L10n.mediaAttributes) {
-                    router.route(to: \.itemViewAttributes, $itemViewAttributes)
+                    router.route(to: .itemViewAttributes(selection: $itemViewAttributes))
                 }
 
                 ListRowMenu(L10n.enabledTrailers, selection: $enabledTrailers)
 
+                /// Enable Refreshing & Deleting Collections
+                if userSession?.user.permissions.items.canManageCollections == true {
+                    Toggle(L10n.editCollections, isOn: $enableCollectionManagement)
+                }
                 /// Enable Refreshing Items from All Visible LIbraries
-                if userSession?.user.permissions.items.canEditMetadata ?? false {
+                if userSession?.user.permissions.items.canEditMetadata == true {
                     Toggle(L10n.editMedia, isOn: $enableItemEditing)
                 }
                 /// Enable Deleting Items from Approved Libraries
-                if userSession?.user.permissions.items.canDelete ?? false {
+                if userSession?.user.permissions.items.canDelete == true {
                     Toggle(L10n.deleteMedia, isOn: $enableItemDeletion)
-                }
-                /// Enable Refreshing & Deleting Collections
-                if userSession?.user.permissions.items.canManageCollections ?? false {
-                    Toggle(L10n.editCollections, isOn: $enableCollectionManagement)
                 }
             }
         }
