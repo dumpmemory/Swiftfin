@@ -65,9 +65,9 @@ extension EditItemElementView {
                     if type == .people {
                         let person = (item as! BaseItemPerson)
 
-                        TextPairView(
-                            leading: person.type?.displayTitle ?? .emptyDash,
-                            trailing: person.role ?? .emptyDash
+                        LabeledContent(
+                            person.type?.displayTitle ?? .emptyDash,
+                            value: person.role ?? .emptyDash
                         )
                         .foregroundStyle(
                             isEditing ? (isSelected ? .primary : .secondary) : .primary,
@@ -105,8 +105,8 @@ extension EditItemElementView {
                     }
             }
             .posterStyle(.portrait)
-            .posterShadow()
             .frame(width: 30, height: 90)
+            .posterShadow()
             .padding(.horizontal)
         }
     }

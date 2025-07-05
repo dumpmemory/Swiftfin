@@ -44,13 +44,12 @@ extension ChannelLibraryView {
                             .padding(5)
                     }
                     .aspectRatio(1.0, contentMode: .fill)
+                    .posterBorder()
                     .cornerRadius(ratio: 0.0375, of: \.width)
-                    .posterBorder(ratio: 0.0375, of: \.width)
 
                     Text(channel.displayTitle)
                         .font(.footnote.weight(.regular))
                         .foregroundColor(.primary)
-                        .backport
                         .lineLimit(1, reservesSpace: true)
                         .font(.footnote.weight(.regular))
                 }

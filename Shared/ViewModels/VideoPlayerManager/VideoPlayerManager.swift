@@ -74,6 +74,8 @@ class VideoPlayerManager: ViewModel {
         super.init()
 
         setupControlListeners()
+
+        setupNotifications()
     }
 
     func selectNextViewModel() {
@@ -213,11 +215,6 @@ class VideoPlayerManager: ViewModel {
 
     func sendStopReport() {
 
-        // TODO: This entire system is being redone in other PRs,
-        //       can ignore the fact this is commented out for now.
-        let ids = ["itemID": currentViewModel.item.id, "seriesID": currentViewModel.item.parentID]
-//        Notifications[.itemMetadataDidChange].post(ids)
-
         #if DEBUG
         guard Defaults[.sendProgressReports] else { return }
         #endif
@@ -236,6 +233,16 @@ class VideoPlayerManager: ViewModel {
 
             let request = Paths.reportPlaybackStopped(stopInfo)
             let _ = try await userSession.client.send(request)
+
+            // TODO: Revise as part of the PlayerManager Rework
+            if let itemID = currentViewModel.item.id {
+                Notifications[.itemShouldRefreshMetadata].post(itemID)
+            }
+
+            // TODO: Revise as part of the PlayerManager Rework
+            if let seriesID = currentViewModel.item.seriesID {
+                Notifications[.itemShouldRefreshMetadata].post(seriesID)
+            }
         }
     }
 
@@ -309,6 +316,36 @@ class VideoPlayerManager: ViewModel {
             self?.proxy.play()
 
             return .success
+        }
+    }
+
+    func setupNotifications() {
+        Notifications[.interruption].subscribe(
+            self,
+            selector: #selector(onInterrupt(_:)),
+            observed: AVAudioSession.sharedInstance()
+        )
+    }
+
+    @objc
+    func onInterrupt(_ notification: Notification) {
+        guard let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: rawType)
+        else {
+            return
+        }
+
+        switch type {
+        case .began:
+            self.proxy.pause()
+        case .ended:
+            if let rawOption = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt,
+               AVAudioSession.InterruptionOptions(rawValue: rawOption).contains(.shouldResume)
+            {
+                self.proxy.play()
+            }
+        @unknown default:
+            break
         }
     }
 }

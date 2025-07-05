@@ -62,7 +62,7 @@ extension VideoPlayer.Overlay {
 
                     Button {
                         if let currentChapter = viewModel.chapter(from: currentProgressHandler.seconds) {
-                            collectionHStackProxy.scrollTo(element: currentChapter)
+                            collectionHStackProxy.scrollTo(id: currentChapter.unwrappedIDHashOrZero)
                         }
                     } label: {
                         Text(L10n.current)
@@ -75,6 +75,7 @@ extension VideoPlayer.Overlay {
 
                 CollectionHStack(
                     uniqueElements: viewModel.chapters,
+                    id: \.unwrappedIDHashOrZero,
                     minWidth: 200
                 ) { chapter in
                     ChapterButton(chapter: chapter)
@@ -85,7 +86,7 @@ extension VideoPlayer.Overlay {
                     guard newValue == .chapters else { return }
 
                     if let currentChapter = viewModel.chapter(from: currentProgressHandler.seconds) {
-                        collectionHStackProxy.scrollTo(element: currentChapter, animated: false)
+                        collectionHStackProxy.scrollTo(id: currentChapter, animated: false)
                     }
                 }
                 .trackingSize($size)
@@ -162,7 +163,7 @@ extension VideoPlayer.Overlay.ChapterOverlay {
                         })
                     }
                     .aspectRatio(1.77, contentMode: .fill)
-                    .posterBorder(ratio: 1 / 30, of: \.width)
+                    .posterBorder()
                     .cornerRadius(ratio: 1 / 30, of: \.width)
 
                     VStack(alignment: .leading, spacing: 5) {

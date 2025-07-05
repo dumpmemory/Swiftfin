@@ -90,21 +90,37 @@ extension View {
     }
 
     /// Applies the aspect ratio, corner radius, and border for the given `PosterType`
+    ///
+    /// Note: will not apply `posterShadow`
     @ViewBuilder
-    func posterStyle(_ type: PosterDisplayType, contentMode: ContentMode = .fill) -> some View {
+    func posterStyle(
+        _ type: PosterDisplayType,
+        contentMode: ContentMode = .fill
+    ) -> some View {
         switch type {
         case .landscape:
             aspectRatio(1.77, contentMode: contentMode)
             #if !os(tvOS)
-                .posterBorder(ratio: 1 / 30, of: \.width)
+                .posterBorder()
                 .cornerRadius(ratio: 1 / 30, of: \.width)
             #endif
         case .portrait:
             aspectRatio(2 / 3, contentMode: contentMode)
             #if !os(tvOS)
-                .posterBorder(ratio: 0.0375, of: \.width)
+                .posterBorder()
                 .cornerRadius(ratio: 0.0375, of: \.width)
             #endif
+        }
+    }
+
+    func posterBorder() -> some View {
+        overlay {
+            ContainerRelativeShape()
+                .stroke(
+                    .white.opacity(0.1),
+                    lineWidth: 1
+                )
+                .clipped()
         }
     }
 
@@ -112,23 +128,15 @@ extension View {
     @ViewBuilder
     func squarePosterStyle(contentMode: ContentMode = .fill) -> some View {
         aspectRatio(1.0, contentMode: contentMode)
-        #if !os(tvOS)
-            .posterBorder(ratio: 0.0375, of: \.width)
+        #if os(iOS)
+            .posterBorder()
             .cornerRadius(ratio: 0.0375, of: \.width)
+            .posterShadow()
         #endif
     }
 
-    func posterBorder(ratio: CGFloat, of side: KeyPath<CGSize, CGFloat>) -> some View {
-        modifier(OnSizeChangedModifier { size in
-            overlay {
-                RoundedRectangle(cornerRadius: size[keyPath: side] * ratio)
-                    .stroke(
-                        .white.opacity(0.10),
-                        lineWidth: 2
-                    )
-                    .clipped()
-            }
-        })
+    func posterShadow() -> some View {
+        shadow(radius: 4, y: 2)
     }
 
     func scrollViewOffset(_ scrollViewOffset: Binding<CGFloat>) -> some View {
@@ -156,88 +164,90 @@ extension View {
         modifier(ErrorMessageModifier(error: error, dismissActions: dismissActions))
     }
 
-    /// Apply a corner radius as a ratio of a view's side
-    func posterShadow() -> some View {
-        shadow(radius: 4, y: 2)
-    }
-
     @ViewBuilder
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        if corners == .allCorners {
-            clipShape(RoundedRectangle(cornerRadius: radius))
-        } else {
-            clipShape(RoundedCorner(radius: radius, corners: corners))
-        }
+    func cornerRadius(
+        _ radius: CGFloat,
+        corners: RectangleCorner = .allCorners,
+        style: RoundedCornerStyle = .circular
+    ) -> some View {
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: corners.contains(.topLeft) ? radius : 0,
+            bottomLeadingRadius: corners.contains(.bottomLeft) ? radius : 0,
+            bottomTrailingRadius: corners.contains(.bottomRight) ? radius : 0,
+            topTrailingRadius: corners.contains(.topRight) ? radius : 0,
+            style: style
+        )
+
+        clipShape(shape)
     }
 
     /// Apply a corner radius as a ratio of a view's side
-    func cornerRadius(ratio: CGFloat, of side: KeyPath<CGSize, CGFloat>, corners: UIRectCorner = .allCorners) -> some View {
-        modifier(OnSizeChangedModifier { size in
-            cornerRadius(size[keyPath: side] * ratio, corners: corners)
-        })
+    @ViewBuilder
+    func cornerRadius(
+        ratio: CGFloat,
+        of side: KeyPath<CGSize, CGFloat>,
+        corners: RectangleCorner = .allCorners,
+        style: RoundedCornerStyle = .circular
+    ) -> some View {
+        modifier(
+            OnSizeChangedModifier { size in
+                let radius = size[keyPath: side] * ratio
+
+                let shape = UnevenRoundedRectangle(
+                    topLeadingRadius: corners.contains(.topLeft) ? radius : 0,
+                    bottomLeadingRadius: corners.contains(.bottomLeft) ? radius : 0,
+                    bottomTrailingRadius: corners.contains(.bottomRight) ? radius : 0,
+                    topTrailingRadius: corners.contains(.topRight) ? radius : 0,
+                    style: style
+                )
+
+                self.clipShape(shape)
+                    .containerShape(shape)
+            }
+        )
     }
 
-    func onFrameChanged(_ onChange: @escaping (CGRect) -> Void) -> some View {
-        background {
-            GeometryReader { reader in
-                Color.clear
-                    .preference(key: FramePreferenceKey.self, value: reader.frame(in: .global))
-            }
+    func onFrameChanged(perform action: @escaping (CGRect, EdgeInsets) -> Void) -> some View {
+        onGeometryChange(for: OnFrameChangedValue.self) { proxy in
+            let frame = proxy.frame(in: .global)
+            let safeAreaInsets = proxy.safeAreaInsets
+
+            return .init(
+                frame: frame,
+                safeAreaInsets: safeAreaInsets
+            )
+        } action: { newValue in
+            action(newValue.frame, newValue.safeAreaInsets)
         }
-        .onPreferenceChange(FramePreferenceKey.self, perform: onChange)
     }
 
     func trackingFrame(_ binding: Binding<CGRect>) -> some View {
-        onFrameChanged { newFrame in
+        onFrameChanged { newFrame, _ in
             binding.wrappedValue = newFrame
         }
     }
 
-    // TODO: have x/y tracked binding
-
-    func onLocationChanged(_ onChange: @escaping (CGPoint) -> Void) -> some View {
-        background {
-            GeometryReader { reader in
-                Color.clear
-                    .preference(
-                        key: LocationPreferenceKey.self,
-                        value: CGPoint(x: reader.frame(in: .global).midX, y: reader.frame(in: .global).midY)
-                    )
-            }
-        }
-        .onPreferenceChange(LocationPreferenceKey.self, perform: onChange)
-    }
-
-    func trackingLocation(_ binding: Binding<CGPoint>) -> some View {
-        onLocationChanged { newLocation in
-            binding.wrappedValue = newLocation
-        }
-    }
-
-    func onSizeChanged(perform action: @escaping (CGSize) -> Void) -> some View {
-        onSizeChanged { size, _ in
-            action(size)
-        }
-    }
-
     func onSizeChanged(perform action: @escaping (CGSize, EdgeInsets) -> Void) -> some View {
-        background {
-            GeometryReader { reader in
-                Color.clear
-                    .preference(
-                        key: GeometryPrefenceKey.self,
-                        value: GeometryPrefenceKey.Value(size: reader.size, safeAreaInsets: reader.safeAreaInsets)
-                    )
-            }
-        }
-        .onPreferenceChange(GeometryPrefenceKey.self) { value in
-            action(value.size, value.safeAreaInsets)
+        onGeometryChange(for: OnFrameChangedValue.self) { proxy in
+            let size = proxy.size
+            let safeAreaInsets = proxy.safeAreaInsets
+
+            return .init(
+                frame: CGRect(origin: .zero, size: size),
+                safeAreaInsets: safeAreaInsets
+            )
+        } action: { newValue in
+            action(newValue.frame.size, newValue.safeAreaInsets)
         }
     }
 
-    func trackingSize(_ binding: Binding<CGSize>) -> some View {
-        onSizeChanged { newSize in
-            binding.wrappedValue = newSize
+    func trackingSize(
+        _ sizeBinding: Binding<CGSize>,
+        _ safeAreaInsetBinding: Binding<EdgeInsets> = .constant(.zero)
+    ) -> some View {
+        onSizeChanged {
+            sizeBinding.wrappedValue = $0
+            safeAreaInsetBinding.wrappedValue = $1
         }
     }
 
@@ -247,13 +257,11 @@ extension View {
         return copy
     }
 
-    // TODO: rename isVisible
-
     /// - Important: Do not use this to add or remove a view from the view heirarchy.
     ///              Use a conditional statement instead.
     @inlinable
-    func visible(_ isVisible: Bool) -> some View {
-        opacity(isVisible ? 1 : 0)
+    func isVisible(opacity: Double = 1.0, _ isVisible: Bool) -> some View {
+        self.opacity(isVisible ? opacity : 0)
     }
 
     @inlinable
@@ -269,15 +277,6 @@ extension View {
     func blurred(style: UIBlurEffect.Style = .regular) -> some View {
         overlay {
             BlurView(style: style)
-        }
-    }
-
-    @ViewBuilder
-    func navigationBarHidden() -> some View {
-        if #available(iOS 16, tvOS 16, *) {
-            toolbar(.hidden, for: .navigationBar)
-        } else {
-            navigationBarHidden(true)
         }
     }
 
@@ -314,7 +313,7 @@ extension View {
         modifier(OnFinalDisappearModifier(action: action))
     }
 
-    /// Perform an action before the first appearance of a `View`.
+    /// Perform an action on the first appearance of a `View`.
     func onFirstAppear(perform action: @escaping () -> Void) -> some View {
         modifier(OnFirstAppearModifier(action: action))
     }
@@ -347,6 +346,12 @@ extension View {
         modifier(ScrollIfLargerThanContainerModifier(padding: padding))
     }
 
+    func maskLinearGradient(
+        @ArrayBuilder<OpacityLinearGradientModifier.Stop> stops: () -> [OpacityLinearGradientModifier.Stop]
+    ) -> some View {
+        modifier(OpacityLinearGradientModifier(stops: stops()))
+    }
+
     // MARK: debug
 
     // Useful modifiers during development for layout without RocketSim
@@ -356,6 +361,14 @@ extension View {
         background {
             Rectangle()
                 .fill(fill)
+        }
+    }
+
+    func debugOverlay<S: ShapeStyle>(_ fill: S = .red.opacity(0.5)) -> some View {
+        overlay {
+            Rectangle()
+                .fill(fill)
+                .allowsHitTesting(false)
         }
     }
 
@@ -380,4 +393,9 @@ extension View {
             .debugHLine(fill)
     }
     #endif
+}
+
+private struct OnFrameChangedValue: Equatable {
+    let frame: CGRect
+    let safeAreaInsets: EdgeInsets
 }

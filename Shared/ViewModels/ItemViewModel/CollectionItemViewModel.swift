@@ -9,32 +9,46 @@
 import Combine
 import Foundation
 import JellyfinAPI
+import OrderedCollections
 
 final class CollectionItemViewModel: ItemViewModel {
 
-    @Published
-    private(set) var collectionItems: [BaseItemDto] = []
+    @ObservedPublisher
+    var sections: OrderedDictionary<BaseItemKind, ItemLibraryViewModel>
 
-    override func onRefresh() async throws {
-        let collectionItems = try await self.getCollectionItems()
+    private let itemCollection: ItemTypeCollection
 
-        await MainActor.run {
-            self.collectionItems = collectionItems
-        }
+    // MARK: - Disable PlayButton
+
+    override var presentPlayButton: Bool {
+        false
     }
 
-    private func getCollectionItems() async throws -> [BaseItemDto] {
-
-        var parameters = Paths.GetItemsByUserIDParameters()
-        parameters.fields = .MinimumFields
-        parameters.parentID = item.id
-
-        let request = Paths.getItemsByUserID(
-            userID: userSession.user.id,
-            parameters: parameters
+    override init(item: BaseItemDto) {
+        self.itemCollection = ItemTypeCollection(
+            parent: item,
+            itemTypes: BaseItemKind.supportedCases
+                .appending(.episode)
+                .removing(.boxSet)
         )
-        let response = try await userSession.client.send(request)
+        self._sections = ObservedPublisher(
+            wrappedValue: [:],
+            observing: itemCollection.$elements
+        )
 
-        return response.value.items ?? []
+        super.init(item: item)
+    }
+
+    // MARK: - Override Response
+
+    override func respond(to action: ItemViewModel.Action) -> ItemViewModel.State {
+
+        switch action {
+        case .refresh, .backgroundRefresh:
+            itemCollection.send(.refresh)
+        default: ()
+        }
+
+        return super.respond(to: action)
     }
 }
